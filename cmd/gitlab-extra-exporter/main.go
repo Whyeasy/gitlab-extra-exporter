@@ -66,10 +66,16 @@ func parseConfig() error {
 			}
 		}
 		if f.Name == "listenAddress" && (f.Value.String() == "" || f.Value.String() == "0") {
-			f.Value.Set("8080")
+			err = f.Value.Set("8080")
+			if err != nil {
+				log.Error(err)
+			}
 		}
 		if f.Name == "listenPath" && (f.Value.String() == "" || f.Value.String() == "0") {
-			f.Value.Set("/metrics")
+			err = f.Value.Set("/metrics")
+			if err != nil {
+				log.Error(err)
+			}
 		}
 
 	})

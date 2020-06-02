@@ -86,7 +86,7 @@ func getProjects(c *gitlab.Client) (*[]ProjectStats, error) {
 
 	page := 1
 
-	for true {
+	for {
 		projects, _, err := c.Projects.ListProjects(&gitlab.ListProjectsOptions{
 			ListOptions: gitlab.ListOptions{Page: page, PerPage: 100},
 			Archived:    gitlab.Bool(true),
@@ -124,7 +124,7 @@ func getMergeRequests(c *gitlab.Client) (*[]MergeRequestStats, error) {
 
 	page := 1
 
-	for true {
+	for {
 		mr, _, err := c.MergeRequests.ListMergeRequests(&gitlab.ListMergeRequestsOptions{
 			ListOptions:  gitlab.ListOptions{Page: page, PerPage: 100},
 			UpdatedAfter: &updateAfter,
