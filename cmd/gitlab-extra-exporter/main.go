@@ -44,13 +44,16 @@ func main() {
 
 	http.Handle(config.ListenPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
+		_, err := w.Write([]byte(`<html>
 			<head><title>Gitlab Extra Exporter</title></head>
 			<body>
 			<h1>Gitlab Extra Exporter</h1>
 			<p><a href="` + config.ListenPath + `">Metrics</a></p>
 			</body>
 			</html>`))
+		if err != nil {
+			log.Error(err)
+		}
 	})
 	log.Fatal(http.ListenAndServe(":"+config.ListenAddress, nil))
 }
