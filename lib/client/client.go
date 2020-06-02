@@ -89,7 +89,7 @@ func getProjects(c *gitlab.Client) (*[]ProjectStats, error) {
 	for {
 		projects, _, err := c.Projects.ListProjects(&gitlab.ListProjectsOptions{
 			ListOptions: gitlab.ListOptions{Page: page, PerPage: 100},
-			Archived:    gitlab.Bool(true),
+			Archived:    gitlab.Bool(false),
 			Simple:      gitlab.Bool(true),
 		})
 		if err != nil {
