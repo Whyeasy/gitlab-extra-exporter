@@ -18,8 +18,9 @@ type Collector struct {
 
 	projectInfo *prometheus.Desc
 
-	mergeRequestUpdated *prometheus.Desc
-	mergeRequestChanges *prometheus.Desc
+	mergeRequestUpdated   *prometheus.Desc
+	mergeRequestChanges   *prometheus.Desc
+	mergeRequestApprovals *prometheus.Desc
 }
 
 //New creates a new Collector with Prometheus descriptors.
@@ -29,9 +30,10 @@ func New(c *client.ExporterClient) *Collector {
 		up:     prometheus.NewDesc("gitlab_extra_up", "Whether Gitlab scrap was successful", nil, nil),
 		client: c,
 
-		projectInfo:         prometheus.NewDesc("gitlab_project_info", "General information about projects", []string{"project_id", "project_name"}, nil),
-		mergeRequestUpdated: prometheus.NewDesc("gitlab_merge_request_updated", "Last update on the merge requests that are open", []string{"merge_request_id", "target_branch", "state", "project_id"}, nil),
-		mergeRequestChanges: prometheus.NewDesc("gitlab_merge_request_changes", "Amount of changed files within the merge request", []string{"merge_request_id", "target_branch", "state", "project_id"}, nil),
+		projectInfo:           prometheus.NewDesc("gitlab_project_info", "General information about projects", []string{"project_id", "project_name"}, nil),
+		mergeRequestUpdated:   prometheus.NewDesc("gitlab_merge_request_updated", "Last update on the merge requests that are open", []string{"merge_request_id", "target_branch", "state", "project_id", "merge_request_title"}, nil),
+		mergeRequestChanges:   prometheus.NewDesc("gitlab_merge_request_changes", "Amount of changed files within the merge request", []string{"merge_request_id", "target_branch", "state", "project_id", "merge_request_title"}, nil),
+		mergeRequestApprovals: prometheus.NewDesc("gitlab_merge_request_approvals", "Amount of approvals left for approving MR", []string{"merge_request_id", "project_id"}, nil),
 	}
 }
 
@@ -42,6 +44,7 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.projectInfo
 	ch <- c.mergeRequestUpdated
 	ch <- c.mergeRequestChanges
+	ch <- c.mergeRequestApprovals
 }
 
 //Collect gathers the metrics that are exported.
@@ -59,12 +62,12 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 		collectMergeRequestMetrics(c, ch, stats)
 
+		collectMergeRequestApprovalMetrics(c, ch, stats)
+
 		log.Info("Scrape Complete")
 	}
 
 }
-
-//Gathering Project metrics
 
 func collectProjectInfo(c *Collector, ch chan<- prometheus.Metric, stats *client.Stats) {
 	for _, project := range *stats.Projects {
@@ -81,7 +84,14 @@ func collectMergeRequestMetrics(c *Collector, ch chan<- prometheus.Metric, stats
 			changes, _ = strconv.ParseFloat(mr.ChangeCount, 64)
 		}
 
-		ch <- prometheus.MustNewConstMetric(c.mergeRequestUpdated, prometheus.GaugeValue, time.Since(*mr.LastUpdated).Round(time.Second).Seconds(), mr.ID, mr.TargetBranch, mr.State, mr.ProjectID)
-		ch <- prometheus.MustNewConstMetric(c.mergeRequestChanges, prometheus.GaugeValue, changes, mr.ID, mr.TargetBranch, mr.State, mr.ProjectID)
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestUpdated, prometheus.GaugeValue, time.Since(*mr.LastUpdated).Round(time.Second).Seconds(), mr.ID, mr.TargetBranch, mr.State, mr.ProjectID, mr.Title)
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestChanges, prometheus.GaugeValue, changes, mr.ID, mr.TargetBranch, mr.State, mr.ProjectID, mr.Title)
+
+	}
+}
+
+func collectMergeRequestApprovalMetrics(c *Collector, ch chan<- prometheus.Metric, stats *client.Stats) {
+	for _, appr := range *stats.Approvals {
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestApprovals, prometheus.GaugeValue, float64(appr.Approvals), appr.ID, appr.ProjectID)
 	}
 }

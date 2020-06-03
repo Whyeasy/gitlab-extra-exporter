@@ -15,6 +15,7 @@ import (
 type Stats struct {
 	Projects      *[]ProjectStats
 	MergeRequests *[]MergeRequestStats
+	Approvals     *[]ApprovalStats
 }
 
 //ProjectStats is the struct for Gitlab projects data we want.
@@ -26,13 +27,20 @@ type ProjectStats struct {
 //MergeRequestStats is the struct for Gitlab Merge Requests data we want
 type MergeRequestStats struct {
 	ID           string
-	InternalID   string
+	InternalID   int
 	State        string
-	CreatedAt    *time.Time
 	LastUpdated  *time.Time
 	TargetBranch string
 	ProjectID    string
 	ChangeCount  string
+	Title        string
+}
+
+//ApprovalStats is the struct for Gitlab Approvals data we want
+type ApprovalStats struct {
+	Approvals int
+	ID        string
+	ProjectID string
 }
 
 //ExporterClient contains Gitlab information for connecting
@@ -69,13 +77,12 @@ func (c *ExporterClient) GetStats() (*Stats, error) {
 		return nil, err
 	}
 
-	// _, err = getMergeRequestChanges(glc, &Stats{
-	// 	MergeRequests: mr,
-	// })
+	appr, err := getApprovals(glc, *mr)
 
 	return &Stats{
 		Projects:      projects,
 		MergeRequests: mr,
+		Approvals: appr,
 	}, nil
 }
 
@@ -158,11 +165,34 @@ func getMergeRequests(c *gitlab.Client) (*[]MergeRequestStats, error) {
 			ProjectID:    strconv.Itoa(mr.ProjectID),
 			State:        mr.State,
 			TargetBranch: mr.TargetBranch,
+			Title:        mr.Title,
 			ID:           strconv.Itoa(mr.ID),
-			InternalID:   strconv.Itoa(mr.IID),
+			InternalID:   mr.IID,
 			ChangeCount:  changeCount.ChangesCount,
 		})
 
+	}
+
+	return &result, nil
+}
+
+// getApprovals retrieves the amount of approvals left for a merge request
+func getApprovals(c *gitlab.Client, mergeStats []MergeRequestStats) (*[]ApprovalStats, error) {
+	var result []ApprovalStats
+
+	for _, mr := range mergeStats {
+		if mr.State == "opened" {
+			approvals, _, err := c.MergeRequestApprovals.GetConfiguration(mr.ProjectID, mr.InternalID)
+			if err != nil {
+				return nil, err
+			}
+
+			result = append(result, ApprovalStats{
+				Approvals: approvals.ApprovalsLeft,
+				ID:        mr.ID,
+				ProjectID: mr.ProjectID,
+			})
+		}
 	}
 
 	return &result, nil
