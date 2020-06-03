@@ -78,11 +78,14 @@ func (c *ExporterClient) GetStats() (*Stats, error) {
 	}
 
 	appr, err := getApprovals(glc, *mr)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Stats{
 		Projects:      projects,
 		MergeRequests: mr,
-		Approvals: appr,
+		Approvals:     appr,
 	}, nil
 }
 
