@@ -24,6 +24,7 @@ type Collector struct {
 	mergeRequestUpdated   *prometheus.Desc
 	mergeRequestChanges   *prometheus.Desc
 	mergeRequestApprovals *prometheus.Desc
+	mergeRequestAssignees *prometheus.Desc
 }
 
 //New creates a new Collector with Prometheus descriptors.
@@ -40,6 +41,7 @@ func New(c *client.ExporterClient) *Collector {
 		mergeRequestMerged:    prometheus.NewDesc("gitlab_merge_request_merged", "Date of merging the merge request", []string{"merge_request_id", "target_branch", "state", "project_id", "merge_request_title"}, nil),
 		mergeRequestChanges:   prometheus.NewDesc("gitlab_merge_request_changes", "Amount of changed files within the merge request", []string{"merge_request_id", "target_branch", "state", "project_id", "merge_request_title"}, nil),
 		mergeRequestApprovals: prometheus.NewDesc("gitlab_merge_request_approvals", "Amount of approvals left for approving MR", []string{"merge_request_id", "project_id"}, nil),
+		mergeRequestAssignees: prometheus.NewDesc("gitlab_merge_request_assignees", "Amount of assignees assigned to the MR", []string{"merge_request_id", "project_id"}, nil),
 	}
 }
 
@@ -54,6 +56,7 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.mergeRequestClosed
 	ch <- c.mergeRequestCreated
 	ch <- c.mergeRequestMerged
+	ch <- c.mergeRequestAssignees
 }
 
 //Collect gathers the metrics that are exported.
@@ -100,7 +103,7 @@ func collectOpenMergeRequestMetrics(c *Collector, ch chan<- prometheus.Metric, s
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestCreated, prometheus.GaugeValue, float64(time.Time(*mr.CreatedAt).Unix()), mr.ID, mr.TargetBranch, mr.State, mr.ProjectID, mr.Title)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestUpdated, prometheus.GaugeValue, time.Since(*mr.LastUpdated).Round(time.Second).Seconds(), mr.ID, mr.TargetBranch, mr.State, mr.ProjectID, mr.Title)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestChanges, prometheus.GaugeValue, changes, mr.ID, mr.TargetBranch, mr.State, mr.ProjectID, mr.Title)
-
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestAssignees, prometheus.GaugeValue, float64(mr.Assignees), mr.ID, mr.ProjectID)
 	}
 }
 
@@ -117,6 +120,7 @@ func collectClosedMergeRequestMetrics(c *Collector, ch chan<- prometheus.Metric,
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestUpdated, prometheus.GaugeValue, time.Since(*mr.MergeRequest.LastUpdated).Round(time.Second).Seconds(), mr.MergeRequest.ID, mr.MergeRequest.TargetBranch, mr.MergeRequest.State, mr.MergeRequest.ProjectID, mr.MergeRequest.Title)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestChanges, prometheus.GaugeValue, changes, mr.MergeRequest.ID, mr.MergeRequest.TargetBranch, mr.MergeRequest.State, mr.MergeRequest.ProjectID, mr.MergeRequest.Title)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestClosed, prometheus.GaugeValue, float64(time.Time(*mr.ClosedAt).Unix()), mr.MergeRequest.ID, mr.MergeRequest.TargetBranch, mr.MergeRequest.State, mr.MergeRequest.ProjectID, mr.MergeRequest.Title)
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestAssignees, prometheus.GaugeValue, float64(mr.MergeRequest.Assignees), mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
 	}
 }
 
@@ -133,6 +137,7 @@ func collectMergedMergeRequestMetrics(c *Collector, ch chan<- prometheus.Metric,
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestUpdated, prometheus.GaugeValue, time.Since(*mr.MergeRequest.LastUpdated).Round(time.Second).Seconds(), mr.MergeRequest.ID, mr.MergeRequest.TargetBranch, mr.MergeRequest.State, mr.MergeRequest.ProjectID, mr.MergeRequest.Title)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestChanges, prometheus.GaugeValue, changes, mr.MergeRequest.ID, mr.MergeRequest.TargetBranch, mr.MergeRequest.State, mr.MergeRequest.ProjectID, mr.MergeRequest.Title)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestMerged, prometheus.GaugeValue, 0.0, mr.MergeRequest.ID, mr.MergeRequest.TargetBranch, mr.MergeRequest.State, mr.MergeRequest.ProjectID, mr.MergeRequest.Title)
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestAssignees, prometheus.GaugeValue, float64(mr.MergeRequest.Assignees), mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
 	}
 }
 
