@@ -15,6 +15,7 @@ import (
 //Stats struct is the list of expected to results to export.
 type Stats struct {
 	Projects            *[]ProjectStats
+	MergeRequests       *[]MergeRequestStats
 	MergeRequestsOpen   *[]MergeRequestStats
 	MergeRequestsClosed *[]MergeClosedStats
 	MergeRequestsMerged *[]MergeMergedStats
@@ -89,7 +90,12 @@ func (c *ExporterClient) GetStats() (*Stats, error) {
 		return nil, err
 	}
 
-	mrOpen, mrMerged, mrClosed, err := getMergeRequests(glc)
+	mrs, err := getMergeRequest(glc)
+	if err != nil {
+		return nil, err
+	}
+
+	mrOpen, mrMerged, mrClosed, err := getMergeRequestsDetails(glc, *mrs)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +107,7 @@ func (c *ExporterClient) GetStats() (*Stats, error) {
 
 	return &Stats{
 		Projects:            projects,
+		MergeRequests:       mrs,
 		MergeRequestsOpen:   mrOpen,
 		MergeRequestsClosed: mrClosed,
 		MergeRequestsMerged: mrMerged,
@@ -144,12 +151,74 @@ func getProjects(c *gitlab.Client) (*[]ProjectStats, error) {
 	return &result, nil
 }
 
-//getMergeRequests retrieves all MRs targeted for the master branch for the last 7 days.
-func getMergeRequests(c *gitlab.Client) (*[]MergeRequestStats, *[]MergeMergedStats, *[]MergeClosedStats, error) {
+//getMergeRequest retrieves all merge requests of the last 7 days
+func getMergeRequest(c *gitlab.Client) (*[]MergeRequestStats, error) {
 
+	updateAfter := time.Now().Add(-7 * 24 * time.Hour)
+	var result []MergeRequestStats
+
+	var mrTotal []*gitlab.MergeRequest
+
+	page := 1
+
+	for {
+		mr, _, err := c.MergeRequests.ListMergeRequests(&gitlab.ListMergeRequestsOptions{
+			ListOptions:  gitlab.ListOptions{Page: page, PerPage: 100},
+			UpdatedAfter: &updateAfter,
+			TargetBranch: gitlab.String("master"),
+			Scope:        gitlab.String("all"),
+			WIP:          gitlab.String("no"),
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(mr) == 0 {
+			break
+		}
+
+		mrTotal = append(mrTotal, mr...)
+		page++
+	}
+
+	log.Info("Found a total of: ", len(mrTotal), " MRs")
+
+	for _, mr := range mrTotal {
+		result = append(result, MergeRequestStats{
+			ProjectID:    strconv.Itoa(mr.ProjectID),
+			State:        mr.State,
+			TargetBranch: mr.TargetBranch,
+			Title:        mr.Title,
+			ID:           strconv.Itoa(mr.ID),
+			InternalID:   mr.IID,
+		})
+	}
+
+	return &result, nil
+}
+
+//getMergeRequestsDetails retrieves the details of given MRs we need for metrics.
+func getMergeRequestsDetails(c *gitlab.Client, mrs []MergeRequestStats) (*[]MergeRequestStats, *[]MergeMergedStats, *[]MergeClosedStats, error) {
+
+	var mrOpen []MergeRequestStats
 	var resultOpen *[]MergeRequestStats
+
+	var mrMerged []MergeRequestStats
 	var resultMerged *[]MergeMergedStats
+
+	var mrClosed []MergeRequestStats
 	var resultClosed *[]MergeClosedStats
+
+	for _, mr := range mrs {
+		switch {
+		case mr.State == "opened":
+			mrOpen = append(mrOpen, mr)
+		case mr.State == "merged":
+			mrMerged = append(mrMerged, mr)
+		case mr.State == "closed":
+			mrClosed = append(mrClosed, mr)
+		}
+	}
 
 	var wg sync.WaitGroup
 
@@ -158,15 +227,15 @@ func getMergeRequests(c *gitlab.Client) (*[]MergeRequestStats, *[]MergeMergedSta
 	wg.Add(3)
 
 	go func() {
-		resultOpen = getOpenMergeRequests(c, errCh, &wg)
+		resultOpen = getOpenMergeRequests(c, errCh, &wg, mrOpen)
 	}()
 
 	go func() {
-		resultMerged = getMergedMergeRequests(c, errCh, &wg)
+		resultMerged = getMergedMergeRequests(c, errCh, &wg, mrMerged)
 	}()
 
 	go func() {
-		resultClosed = getClosedMergeRequests(c, errCh, &wg)
+		resultClosed = getClosedMergeRequests(c, errCh, &wg, mrClosed)
 	}()
 
 	wg.Wait()
@@ -178,124 +247,95 @@ func getMergeRequests(c *gitlab.Client) (*[]MergeRequestStats, *[]MergeMergedSta
 	return resultOpen, resultMerged, resultClosed, nil
 }
 
-func getOpenMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitGroup) *[]MergeRequestStats {
+func getOpenMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitGroup, mergeStats []MergeRequestStats) *[]MergeRequestStats {
 
 	var resultOpen []MergeRequestStats
 
-	mrTotal, err := getMergeRequest(c, "opened")
-	if err != nil {
-		errCh <- err
-		return nil
-	}
+	for _, mr := range mergeStats {
 
-	for _, mr := range mrTotal {
-
-		changeCount, _, err := c.MergeRequests.GetMergeRequest(mr.ProjectID, mr.IID, &gitlab.GetMergeRequestsOptions{})
+		result, _, err := c.MergeRequests.GetMergeRequest(mr.ProjectID, mr.InternalID, &gitlab.GetMergeRequestsOptions{})
 		if err != nil {
 			errCh <- err
 			return nil
 		}
 
 		resultOpen = append(resultOpen, MergeRequestStats{
-			CreatedAt:    mr.CreatedAt,
-			LastUpdated:  mr.UpdatedAt,
-			ProjectID:    strconv.Itoa(mr.ProjectID),
-			State:        mr.State,
-			TargetBranch: mr.TargetBranch,
-			Title:        mr.Title,
-			ID:           strconv.Itoa(mr.ID),
-			InternalID:   mr.IID,
-			ChangeCount:  changeCount.ChangesCount,
-			Assignees:    len(mr.Assignees),
+			ProjectID:   strconv.Itoa(result.ProjectID),
+			ID:          strconv.Itoa(result.ID),
+			InternalID:  result.IID,
+			CreatedAt:   result.CreatedAt,
+			LastUpdated: result.UpdatedAt,
+			ChangeCount: result.ChangesCount,
+			Assignees:   len(result.Assignees),
 		})
 
 	}
-
+	log.Info(len(resultOpen), " Open MRs")
 	wg.Done()
 
 	return &resultOpen
 }
 
-func getMergedMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitGroup) *[]MergeMergedStats {
+func getMergedMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitGroup, mergeStats []MergeRequestStats) *[]MergeMergedStats {
 
 	var resultMerged []MergeMergedStats
 
-	mrTotal, err := getMergeRequest(c, "merged")
-	if err != nil {
-		errCh <- err
-		return nil
-	}
+	for _, mr := range mergeStats {
 
-	for _, mr := range mrTotal {
-
-		changeCount, _, err := c.MergeRequests.GetMergeRequest(mr.ProjectID, mr.IID, &gitlab.GetMergeRequestsOptions{})
+		result, _, err := c.MergeRequests.GetMergeRequest(mr.ProjectID, mr.InternalID, &gitlab.GetMergeRequestsOptions{})
 		if err != nil {
 			errCh <- err
 			return nil
 		}
 
-		if mr.MergedAt == nil {
-			mr.MergedAt = &time.Time{}
+		if result.MergedAt == nil {
+			result.MergedAt = &time.Time{}
 		}
 
 		resultMerged = append(resultMerged, MergeMergedStats{
-			MergedAt: mr.MergedAt,
+			MergedAt: result.MergedAt,
 			MergeRequest: MergeRequestStats{
-				CreatedAt:    mr.CreatedAt,
-				LastUpdated:  mr.UpdatedAt,
-				ProjectID:    strconv.Itoa(mr.ProjectID),
-				State:        mr.State,
-				TargetBranch: mr.TargetBranch,
-				Title:        mr.Title,
-				ID:           strconv.Itoa(mr.ID),
-				InternalID:   mr.IID,
-				ChangeCount:  changeCount.ChangesCount,
-				Assignees:    len(mr.Assignees),
+				ProjectID:   strconv.Itoa(result.ProjectID),
+				ID:          strconv.Itoa(result.ID),
+				CreatedAt:   result.CreatedAt,
+				LastUpdated: result.UpdatedAt,
+				ChangeCount: result.ChangesCount,
+				Assignees:   len(result.Assignees),
 			},
 		})
 	}
-
+	log.Info(len(resultMerged), " Merged MRs")
 	wg.Done()
 
 	return &resultMerged
 }
 
-func getClosedMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitGroup) *[]MergeClosedStats {
+func getClosedMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitGroup, mergeStats []MergeRequestStats) *[]MergeClosedStats {
 
 	var resultClosed []MergeClosedStats
 
-	mrTotal, err := getMergeRequest(c, "closed")
-	if err != nil {
-		errCh <- err
-		return nil
-	}
+	for _, mr := range mergeStats {
 
-	for _, mr := range mrTotal {
-
-		changeCount, _, err := c.MergeRequests.GetMergeRequest(mr.ProjectID, mr.IID, &gitlab.GetMergeRequestsOptions{})
+		result, _, err := c.MergeRequests.GetMergeRequest(mr.ProjectID, mr.InternalID, &gitlab.GetMergeRequestsOptions{})
 		if err != nil {
 			errCh <- err
 			return nil
 		}
 
 		resultClosed = append(resultClosed, MergeClosedStats{
-			ClosedAt: mr.ClosedAt,
+			ClosedAt: result.ClosedAt,
 			MergeRequest: MergeRequestStats{
-				CreatedAt:    mr.CreatedAt,
-				LastUpdated:  mr.UpdatedAt,
-				ProjectID:    strconv.Itoa(mr.ProjectID),
-				State:        mr.State,
-				TargetBranch: mr.TargetBranch,
-				Title:        mr.Title,
-				ID:           strconv.Itoa(mr.ID),
-				InternalID:   mr.IID,
-				ChangeCount:  changeCount.ChangesCount,
-				Assignees:    len(mr.Assignees),
+				ProjectID:   strconv.Itoa(result.ProjectID),
+				ID:          strconv.Itoa(result.ID),
+				CreatedAt:   result.CreatedAt,
+				LastUpdated: result.UpdatedAt,
+				ChangeCount: result.ChangesCount,
+				Assignees:   len(result.Assignees),
 			},
 		})
 
 	}
-
+	log.Info(len(resultClosed), " Closed MRs")
 	wg.Done()
 
 	return &resultClosed
@@ -319,38 +359,4 @@ func getApprovals(c *gitlab.Client, mergeStats []MergeRequestStats) (*[]Approval
 	}
 
 	return &result, nil
-}
-
-func getMergeRequest(c *gitlab.Client, state string) ([]*gitlab.MergeRequest, error) {
-
-	updateAfter := time.Now().Add(-7 * 24 * time.Hour)
-
-	var mrTotal []*gitlab.MergeRequest
-
-	page := 1
-
-	for {
-		mr, _, err := c.MergeRequests.ListMergeRequests(&gitlab.ListMergeRequestsOptions{
-			ListOptions:  gitlab.ListOptions{Page: page, PerPage: 100},
-			UpdatedAfter: &updateAfter,
-			TargetBranch: gitlab.String("master"),
-			Scope:        gitlab.String("all"),
-			WIP:          gitlab.String("no"),
-			State:        gitlab.String(state),
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if len(mr) == 0 {
-			break
-		}
-
-		mrTotal = append(mrTotal, mr...)
-		page++
-	}
-
-	log.Info("Found a total of: ", len(mrTotal), " merge requests with state: ", state)
-
-	return mrTotal, nil
 }
