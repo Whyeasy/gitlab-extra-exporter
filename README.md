@@ -10,8 +10,12 @@ Currently this exporter retrieves the following data:
 
 - All projects within Gitlab
 - Retrieves all Merge Request from the last 7 days with:
+  - When the MR is opened.
+  - When the MR is merged.
+  - When the MR is closed.
   - Last update done to the MR.
   - Amount of changes within the MR.
+  - Amount of assignees.
 
 Because of the amount of API request done to get the amount of changes on a MR, limit this exporter to be only requested once per 5 minutes for example, with a Service Monitor time out of 30 sec (depending on the amount of MRs).
 
