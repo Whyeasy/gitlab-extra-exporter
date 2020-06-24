@@ -65,6 +65,7 @@ type ApprovalStats struct {
 type ExporterClient struct {
 	gitlabURI    string
 	gitlabAPIKey string
+	httpClient   *http.Client
 }
 
 //New returns a new Client connection to Gitlab.
@@ -72,15 +73,14 @@ func New(c internal.Config) *ExporterClient {
 	return &ExporterClient{
 		gitlabAPIKey: c.GitlabAPIKey,
 		gitlabURI:    c.GitlabURI,
+		httpClient:   &http.Client{Timeout: 10 * time.Second},
 	}
 }
 
 //GetStats retrieves data from API to create metrics from.
 func (c *ExporterClient) GetStats() (*Stats, error) {
 
-	httpClient := &http.Client{Timeout: 10 * time.Second}
-
-	glc, err := gitlab.NewClient(c.gitlabAPIKey, gitlab.WithBaseURL(c.gitlabURI), gitlab.WithHTTPClient(httpClient))
+	glc, err := gitlab.NewClient(c.gitlabAPIKey, gitlab.WithBaseURL(c.gitlabURI), gitlab.WithHTTPClient(c.httpClient))
 	if err != nil {
 		return nil, err
 	}
