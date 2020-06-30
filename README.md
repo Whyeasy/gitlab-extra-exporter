@@ -29,9 +29,9 @@ Provide a Gitlab API Key with access to projects and merge requests; `--gitlabAP
 
 ### Optional
 
-Change listening port of the exporter; `listenAddress <string>` or as env variable `LISTEN_ADDRESS`. Default = `8080`
+Change listening port of the exporter; `--listenAddress <string>` or as env variable `LISTEN_ADDRESS`. Default = `8080`
 
-Change listening path of the exporter; `listenPath <string>` or as env variable `LISTEN_PATH`. Default = `/metrics`
+Change listening path of the exporter; `--listenPath <string>` or as env variable `LISTEN_PATH`. Default = `/metrics`
 
 ## Helm
 
