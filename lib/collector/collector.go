@@ -48,7 +48,7 @@ func New(c *client.ExporterClient) *Collector {
 		mergeRequestMerged:       prometheus.NewDesc("gitlab_merge_request_merged", "Date of merging the merge request", []string{"merge_request_id", "project_id"}, nil),
 		mergeRequestChangedFiles: prometheus.NewDesc("gitlab_merge_request_changed_files", "Amount of changed files within the merge request", []string{"merge_request_id", "project_id"}, nil),
 		mergeRequestAssignees:    prometheus.NewDesc("gitlab_merge_request_assignees", "Amount of assignees assigned to the MR", []string{"merge_request_id", "project_id"}, nil),
-		mergeRequestDuration:     prometheus.NewDesc("gitllab_merge_request_duration", "Duration between creating and closing or merging a merge request", []string{"merge_request_id", "project_id"}, nil),
+		mergeRequestDuration:     prometheus.NewDesc("gillab_merge_request_duration", "Duration between creating and closing or merging a merge request", []string{"merge_request_id", "project_id"}, nil),
 
 		//Details for Open Merge Requests
 		mergeRequestApprovals: prometheus.NewDesc("gitlab_merge_request_approvals", "Amount of approvals left for approving MR", []string{"merge_request_id", "project_id"}, nil),
