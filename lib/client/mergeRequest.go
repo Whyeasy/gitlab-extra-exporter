@@ -14,14 +14,14 @@ import (
 type MergeClosedStats struct {
 	MergeRequest MergeRequestStats
 	ClosedAt     *time.Time
-	Duration     time.Duration
+	Duration     float64
 }
 
 //MergeMergedStats is the strucct for merged merge requests
 type MergeMergedStats struct {
 	MergeRequest MergeRequestStats
 	MergedAt     *time.Time
-	Duration     time.Duration
+	Duration     float64
 }
 
 //MergeRequestStats is the base struct for Gitlab Merge Requests data we want
@@ -192,9 +192,11 @@ func getMergedMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitG
 			return nil
 		}
 
+		duration, _ := time.ParseDuration(result.MergedAt.Sub(*result.CreatedAt).String())
+
 		resultMerged = append(resultMerged, MergeMergedStats{
 			MergedAt: result.MergedAt,
-			Duration: result.MergedAt.Sub(*result.CreatedAt),
+			Duration: duration.Seconds(),
 			MergeRequest: MergeRequestStats{
 				ProjectID:    strconv.Itoa(result.ProjectID),
 				ID:           strconv.Itoa(result.ID),
@@ -224,9 +226,11 @@ func getClosedMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitG
 			return nil
 		}
 
+		duration, _ := time.ParseDuration(result.ClosedAt.Sub(*result.CreatedAt).String())
+
 		resultClosed = append(resultClosed, MergeClosedStats{
 			ClosedAt: result.ClosedAt,
-			Duration: result.ClosedAt.Sub(*result.CreatedAt),
+			Duration: duration.Seconds(),
 			MergeRequest: MergeRequestStats{
 				ProjectID:    strconv.Itoa(result.ProjectID),
 				ID:           strconv.Itoa(result.ID),

@@ -148,7 +148,7 @@ func collectClosedMergeRequestMetrics(c *Collector, ch chan<- prometheus.Metric,
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestChangedFiles, prometheus.GaugeValue, changes, mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestClosed, prometheus.GaugeValue, float64(time.Time(*mr.ClosedAt).Unix()), mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestAssignees, prometheus.GaugeValue, float64(mr.MergeRequest.Assignees), mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
-		ch <- prometheus.MustNewConstMetric(c.mergeRequestDuration, prometheus.GaugeValue, float64(mr.Duration), mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestDuration, prometheus.GaugeValue, mr.Duration, mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
 	}
 }
 
@@ -166,7 +166,7 @@ func collectMergedMergeRequestMetrics(c *Collector, ch chan<- prometheus.Metric,
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestChangedFiles, prometheus.GaugeValue, changes, mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestMerged, prometheus.GaugeValue, float64(time.Time(*mr.MergedAt).Unix()), mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
 		ch <- prometheus.MustNewConstMetric(c.mergeRequestAssignees, prometheus.GaugeValue, float64(mr.MergeRequest.Assignees), mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
-		ch <- prometheus.MustNewConstMetric(c.mergeRequestDuration, prometheus.GaugeValue, float64(mr.Duration), mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestDuration, prometheus.GaugeValue, mr.Duration, mr.MergeRequest.ID, mr.MergeRequest.ProjectID)
 	}
 }
 
