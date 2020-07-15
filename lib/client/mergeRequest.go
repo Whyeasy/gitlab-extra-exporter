@@ -192,21 +192,23 @@ func getMergedMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitG
 			return nil
 		}
 
-		duration, _ := time.ParseDuration(result.MergedAt.Sub(*result.CreatedAt).String())
+		if result.MergeError == "" {
+			duration, _ := time.ParseDuration(result.MergedAt.Sub(*result.CreatedAt).String())
 
-		resultMerged = append(resultMerged, MergeMergedStats{
-			MergedAt: result.MergedAt,
-			Duration: duration.Seconds(),
-			MergeRequest: MergeRequestStats{
-				ProjectID:    strconv.Itoa(result.ProjectID),
-				ID:           strconv.Itoa(result.ID),
-				CreatedAt:    result.CreatedAt,
-				LastUpdated:  result.UpdatedAt,
-				ChangeCount:  result.ChangesCount,
-				Assignees:    len(result.Assignees),
-				SourceBranch: result.SourceBranch,
-			},
-		})
+			resultMerged = append(resultMerged, MergeMergedStats{
+				MergedAt: result.MergedAt,
+				Duration: duration.Seconds(),
+				MergeRequest: MergeRequestStats{
+					ProjectID:    strconv.Itoa(result.ProjectID),
+					ID:           strconv.Itoa(result.ID),
+					CreatedAt:    result.CreatedAt,
+					LastUpdated:  result.UpdatedAt,
+					ChangeCount:  result.ChangesCount,
+					Assignees:    len(result.Assignees),
+					SourceBranch: result.SourceBranch,
+				},
+			})
+		}
 	}
 	log.Info(len(resultMerged), " Merged MRs")
 	wg.Done()
@@ -226,21 +228,23 @@ func getClosedMergeRequests(c *gitlab.Client, errCh chan<- error, wg *sync.WaitG
 			return nil
 		}
 
-		duration, _ := time.ParseDuration(result.ClosedAt.Sub(*result.CreatedAt).String())
+		if result.MergeError == "" {
+			duration, _ := time.ParseDuration(result.ClosedAt.Sub(*result.CreatedAt).String())
 
-		resultClosed = append(resultClosed, MergeClosedStats{
-			ClosedAt: result.ClosedAt,
-			Duration: duration.Seconds(),
-			MergeRequest: MergeRequestStats{
-				ProjectID:    strconv.Itoa(result.ProjectID),
-				ID:           strconv.Itoa(result.ID),
-				CreatedAt:    result.CreatedAt,
-				LastUpdated:  result.UpdatedAt,
-				ChangeCount:  result.ChangesCount,
-				Assignees:    len(result.Assignees),
-				SourceBranch: result.SourceBranch,
-			},
-		})
+			resultClosed = append(resultClosed, MergeClosedStats{
+				ClosedAt: result.ClosedAt,
+				Duration: duration.Seconds(),
+				MergeRequest: MergeRequestStats{
+					ProjectID:    strconv.Itoa(result.ProjectID),
+					ID:           strconv.Itoa(result.ID),
+					CreatedAt:    result.CreatedAt,
+					LastUpdated:  result.UpdatedAt,
+					ChangeCount:  result.ChangesCount,
+					Assignees:    len(result.Assignees),
+					SourceBranch: result.SourceBranch,
+				},
+			})
+		}
 
 	}
 	log.Info(len(resultClosed), " Closed MRs")
