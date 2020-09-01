@@ -40,7 +40,7 @@ func New(c *client.ExporterClient) *Collector {
 		client: c,
 
 		projectInfo:      prometheus.NewDesc("gitlab_project_info", "General information about projects", []string{"project_id", "project_name"}, nil),
-		mergeRequestInfo: prometheus.NewDesc("gitlab_merge_request_info", "General information about merge requests", []string{"merge_request_id", "target_branch", "state", "merge_request_title", "project_id", "merge_request_internal_id"}, nil),
+		mergeRequestInfo: prometheus.NewDesc("gitlab_merge_request_info", "General information about merge requests", []string{"merge_request_id", "target_branch", "source_branch", "state", "merge_request_title", "project_id", "merge_request_internal_id"}, nil),
 
 		mergeRequestUpdated:      prometheus.NewDesc("gitlab_merge_request_updated", "Time since last update on the merge requests that are open", []string{"merge_request_id", "project_id"}, nil),
 		mergeRequestClosed:       prometheus.NewDesc("gitlab_merge_request_closed", "Date of closing the merge request", []string{"merge_request_id", "project_id"}, nil),
@@ -114,7 +114,7 @@ func collectProjectInfo(c *Collector, ch chan<- prometheus.Metric, stats *client
 
 func collectMergeReqeustInfo(c *Collector, ch chan<- prometheus.Metric, stats *client.Stats) {
 	for _, mr := range *stats.MergeRequests {
-		ch <- prometheus.MustNewConstMetric(c.mergeRequestInfo, prometheus.GaugeValue, 1, mr.ID, mr.TargetBranch, mr.State, mr.Title, mr.ProjectID, strconv.Itoa(mr.InternalID))
+		ch <- prometheus.MustNewConstMetric(c.mergeRequestInfo, prometheus.GaugeValue, 1, mr.ID, mr.TargetBranch, mr.SourceBranch, mr.State, mr.Title, mr.ProjectID, strconv.Itoa(mr.InternalID))
 	}
 }
 
