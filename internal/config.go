@@ -6,4 +6,5 @@ type Config struct {
 	ListenPath    string
 	GitlabURI     string
 	GitlabAPIKey  string
+	Interval      string
 }

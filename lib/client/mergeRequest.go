@@ -46,6 +46,7 @@ type ApprovalStats struct {
 	ProjectID string
 }
 
+//ChangeStats is the struct for the total amount of changes within a MR.
 type ChangeStats struct {
 	ProjectID string
 	ID        string

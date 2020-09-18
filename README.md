@@ -33,6 +33,8 @@ Change listening port of the exporter; `--listenAddress <string>` or as env vari
 
 Change listening path of the exporter; `--listenPath <string>` or as env variable `LISTEN_PATH`. Default = `/metrics`
 
+Change the interval of retrieving data in the background; `--interval <string>` or as env variable `INTERVAL`. Default is `60`
+
 ## Helm
 
 You can find a helm chart to install the exporter [here](https://github.com/Whyeasy/helm-charts/tree/master/charts/gitlab-extra-exporter).
